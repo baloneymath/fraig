@@ -1,0 +1,188 @@
+CirGate*
+CirMgr::getGate(unsigned gid) const
+{
+   return totalList[gid];
+}
+
+void
+CirMgr::DFS(CirGate* c)
+{
+  c->setMark(true);
+  GateList& fanin = c->_faninList;
+  for (size_t i = 0; i < fanin.size(); ++i) {
+    if (fanin[i] && !fanin[i]->getMark()) {
+      if (fanin[i]->getType() != UNDEF_GATE)
+        DFS(fanin[i]);
+    }
+  }
+  DFSList.push_back(c);
+}
+
+bool
+CirMgr::readCircuit(const string& fileName)
+{
+  fstream file;
+  if (file.is_open()) {
+    cerr << "File " << fileName << " cannot be open" << endl;
+    return false;
+  }
+  file.open(fileName.c_str(), fstream::in);
+  _name = fileName;
+
+  string line, token;
+  vector<string> tokens;
+  // header line
+  getline(file, line);
+  size_t n = myStrGetTok(line, token);
+  while (token.size()) {
+    tokens.push_back(token);
+    n = myStrGetTok(line, token, n);
+  }
+  if (tokens.empty()) return false;
+  if (tokens[0] != "aag" || tokens[3] != "0") return false;
+  M = atoi(tokens[1].c_str());
+  I = atoi(tokens[2].c_str());
+  O = atoi(tokens[4].c_str());
+  A = atoi(tokens[5].c_str());
+  if (M < I + A) return false;
+  // Gate data
+  for (size_t i = 0; i < M+O+1; ++i)
+    totalList.push_back(NULL);
+  // CONST
+  CirGate* const0 = new CirGate(CONST_GATE, GateList(), vector<bool>(), GateList());
+  totalList[0] = new CirGate(*const0);
+  // PI
+  for (size_t i = 0; i < I; ++i) {
+    getline(file, line);
+    unsigned id = atoi(line.c_str())/2;
+    CirGate* temp = new CirGate(PI_GATE, GateList(), vector<bool>(), GateList(), id, i+2);
+    _piList.push_back(temp);
+    totalList[id] = temp;
+  }
+  // PO
+  for (size_t i = 0; i < O; ++i) {
+    getline(file, line);
+    unsigned id = M+i+1;
+    size_t in = atoi(line.c_str());
+    GateList fanin;
+    fanin.push_back( (CirGate*)(in/2) );
+
+    vector<bool> inIsInv;
+    if (in % 2 != 0) inIsInv.push_back(true);
+    else inIsInv.push_back(false);
+
+    CirGate* temp = new CirGate(PO_GATE, fanin, inIsInv, GateList(), id, i+I+2);
+    _poList.push_back(temp);
+    totalList[id] = temp;
+  }
+  // AIG
+  for (size_t i = 0; i < A; ++i) {
+    getline(file, line);
+    string token;
+    vector<string> tokens;
+    size_t n = myStrGetTok(line, token);
+    while (token.size()) {
+      tokens.push_back(token);
+      n = myStrGetTok(line, token, n);
+    }
+    unsigned id = atoi(tokens[0].c_str())/2;
+    GateList fanin;
+    size_t id1 = atoi(tokens[1].c_str())/2;
+    size_t id2 = atoi(tokens[2].c_str())/2;
+    fanin.push_back( (CirGate*)(id1) );
+    fanin.push_back( (CirGate*)(id2) );
+
+    vector<bool> inIsInv;
+    if (atoi(tokens[1].c_str()) % 2 != 0) inIsInv.push_back(true);
+    else inIsInv.push_back(false);
+    if (atoi(tokens[2].c_str()) % 2 != 0) inIsInv.push_back(true);
+    else inIsInv.push_back(false);
+
+    CirGate* temp = new CirGate(AIG_GATE, fanin, inIsInv, GateList(), id, i+I+O+2);
+    _aigList.push_back(temp);
+    totalList[id] = temp;
+  }
+  // set PO's fanin
+  for (size_t i = 0; i < O; ++i) {
+    GateList& fanin = _poList[i]->_faninList;
+    for (size_t j = 0; j < fanin.size(); ++j) {
+      fanin[j] = getGate( (size_t)(fanin[j]) );
+    }
+  }
+  // set AIG's fanins
+  for (size_t i = 0; i < A; ++i) {
+    GateList& fanin = _aigList[i]->_faninList;
+    for (size_t j = 0; j < fanin.size(); ++j) {
+      unsigned id = (size_t)(fanin[j]);
+      fanin[j] = getGate(id);
+      if (fanin[j] == NULL)
+        fanin[j] = new CirGate(UNDEF_GATE, GateList(), vector<bool>(), GateList(), id);
+    }
+  }
+
+  // set CONST0's fanouts
+  for (size_t i = 0; i < totalList.size(); ++i) {
+    if (totalList[i]) {
+      GateList& fanin = totalList[i]->_faninList;
+      if (fanin.size() > 0 && fanin[0]->getId() == 0)
+        totalList[0]->_fanoutList.push_back(totalList[i]);
+      if (fanin.size() == 2 && fanin[1]->getId() == 0)
+        totalList[0]->_fanoutList.push_back(totalList[i]);
+    }
+  }
+  // set PI's fanouts
+  for (size_t i = 0; i < _piList.size(); ++i) {
+    for (size_t j = 0; j < totalList.size(); ++j) {
+      if (totalList[j]) {
+        GateList& fanin = totalList[j]->_faninList;
+        if (fanin.size() > 0 && fanin[0]->getId() == _piList[i]->getId())
+          _piList[i]->_fanoutList.push_back(totalList[j]);
+        if (fanin.size() == 2 && fanin[1]->getId() == _piList[i]->getId())
+          _piList[i]->_fanoutList.push_back(totalList[j]);
+      }
+    }
+  }
+  // set AIG's fanouts
+  for (size_t i = 0; i < _aigList.size(); ++i) {
+    for (size_t j = 0; j < totalList.size(); ++j) {
+      if (totalList[j]) {
+        GateList& fanin = totalList[j]->_faninList;
+        if (fanin.size() > 0 && fanin[0]->getId() == _aigList[i]->getId())
+          _aigList[i]->_fanoutList.push_back(totalList[j]);
+        if (fanin.size() == 2 && fanin[1]->getId() == _aigList[i]->getId())
+          _aigList[i]->_fanoutList.push_back(totalList[j]);
+      }
+    }
+  }
+  // build DFS list
+  for (size_t i = 0; i < O; ++i) {
+    DFS(_poList[i]);
+  }
+  // reset marks
+  for (size_t i = 0; i < totalList.size(); ++i) {
+    if (totalList[i]) 
+      totalList[i]->setMark(false);
+  }
+  // names
+  while (getline(file, line)) {
+    if (line == "c") break;
+    string token;
+    vector<string> tokens;
+    size_t n = myStrGetTok(line, token);
+    while (token.size()) {
+      tokens.push_back(token);
+      n = myStrGetTok(line, token, n);
+    }
+    // PI's symbol
+    string target = tokens[0];
+    unsigned ID = atoi(target.substr(1).c_str());
+    if (target[0] == 'i') {
+      _piList[ID]->setName(tokens[1]);
+    }
+    // PO's symbol
+    else if (target[0] == 'o') {
+      _poList[ID]->setName(tokens[1]);
+    }
+  }
+  return true;
+}
