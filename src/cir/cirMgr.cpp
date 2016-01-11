@@ -285,7 +285,10 @@ CirMgr::readCircuit(const string& fileName)
     // if (input)	gateList[ith + 1]->setSymbol(tokens[1]);
     // else			gateList[ith + 1 + ins + ands]->setSymbol(tokens[1]);
   }
-  creatDFS();
+  for (size_t i = 0; i < gateList.size(); ++i) {
+    if (gateList[i] && gateList[i]->getType() == PO_GATE)
+      DFS(gateList[i]);
+  }
   resetFlag();
 
   return true;
@@ -302,13 +305,6 @@ CirMgr::DFS(CirGate* c) {
     }
   }
   DFSList.push_back(c);
-}
-GateList
-CirMgr::creatDFS() {
-  for (size_t i = 0; i < gateList.size(); ++i) {
-    if (gateList[i] && gateList[i]->getType() == PO_GATE)
-      DFS(gateList[i]);
-  }
 }
 
 /**********************************************************/
@@ -339,14 +335,9 @@ void
 CirMgr::printNetlist() const
 {
   cout << endl;
-  for (unsigned i = 0, size = vars + outs + 1; i < size; ++i) {
-    CirGate *g = getGate(i);
-    if (g == 0)	continue;
-    if (g->getType() == PO_GATE)
-      g->printGate();
+  for (size_t i = 0; i < DFSList.size(); ++i) {
+    DFSList[i]->printGate();
   }
-  CirGate::index = 0;
-  resetFlag();
 }
 
 void 
