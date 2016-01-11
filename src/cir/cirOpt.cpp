@@ -34,38 +34,41 @@ void
 CirMgr::sweep()
 {
   for (size_t i = 0; i < gateList.size(); ++i) {
+    bool flag = false;
     if (gateList[i] == NULL) continue;
-    if (gateList[i]->getType() == CONST_GATE) continue;
-    else if (gateList[i]->getType() == PI_GATE) continue;
-    else if (gateList[i]->getType() == PO_GATE) continue;
+    if (gateList[i]->getType() == PO_GATE) continue;
+    else if (gateList[i]->getType() == CONST_GATE) flag = true;
+    else if (gateList[i]->getType() == PI_GATE) flag = true;
     else if (gateList[i]->getType() == AIG_GATE) {
-      bool flag = false;
-      for (size_t j = 0; j < DFSList.size(); ++j) {
-        if (gateList[i] == DFSList[j]) flag = true;
-      }
-      if (!flag) {
-        cout << "Sweeping: " << gateList[i]->getTypeStr();
-        cout << '(' << gateList[i]->getGateId() << ") removed..." << endl;
-        delete gateList[i];
-        gateList[i] = NULL;
-      }
+      flag = check(gateList[i]);
+      if (!flag) --ands;
     }
     else if (gateList[i]->getType() == UNDEF_GATE) {
       GateList& out = gateList[i]->outputs;
-      bool flag = false;
-      for (size_t j = 0; j < out.size(); ++j) {
-        for (size_t k = 0; k < DFSList.size(); ++k) {
-          if (out[j] == DFSList[k]) flag = true;
-        }
-      }
-      if (!flag) {
-        cout << "Sweeping: " << gateList[i]->getTypeStr();
-        cout << '(' << gateList[i]->getGateId() << ") removed..." << endl;
-        delete gateList[i];
-        gateList[i] = NULL;
-      }
+      for (size_t j = 0; j < out.size(); ++j)
+        flag = check(out[j]);
+    }
+    if (!flag) {
+      cout << "Sweeping: " << gateList[i]->getTypeStr();
+      cout << '(' << gateList[i]->getGateId() << ") removed..." << endl;
+      delete gateList[i];
+      gateList[i] = NULL;
+    }
+    else {
+      GateList& out = gateList[i]->outputs;
+      for (size_t j = 0; j < out.size(); ++j)
+        if (!check(out[j])) out.erase(out.begin()+j);
     }
   }
+}
+
+bool
+CirMgr::check(CirGate* g)
+{
+  for (size_t k = 0; k < DFSList.size(); ++k) {
+    if (g == DFSList[k]) return true;
+  }
+  return false;
 }
 
 // Recursively simplifying from POs;
@@ -74,6 +77,9 @@ CirMgr::sweep()
 void
 CirMgr::optimize()
 {
+  for (size_t i = 0; i < DFSList.size(); ++i) {
+    
+  }
 }
 
 /***************************************************/

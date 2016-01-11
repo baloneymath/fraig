@@ -338,6 +338,7 @@ CirMgr::printNetlist() const
   for (size_t i = 0; i < DFSList.size(); ++i) {
     DFSList[i]->printGate();
   }
+  CirGate::index = 0;
 }
 
 void 

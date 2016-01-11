@@ -41,6 +41,7 @@ class CirMgr
 
     // Member functions about circuit optimization
     void sweep();
+    bool check(CirGate*);
     void optimize();
 
     // Member functions about simulation
