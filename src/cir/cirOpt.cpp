@@ -33,6 +33,35 @@ using namespace std;
 void
 CirMgr::sweep()
 {
+  for (size_t i = 0; i < gateList.size(); ++i) {
+    bool flag = false;
+    for (size_t j = 0; j < DFSList.size(); ++j)
+      if (gateList[i] == DFSList[j]) flag = true;
+    if (!flag) {
+      if (gateList[i]->getType() != CONST_GATE && gateList[i]->getType() != PI_GATE) {
+        cout << "Sweeping: " << gateList[i]->getTypeStr();
+        cout << '(' << gateList[i]->getGateId() << ") removed..." << endl;
+        if (gateList[i]->getType() == AIG_GATE) --ands;
+        delete gateList[i];
+        gateList[i] = NULL;
+      }
+    }
+  }
+  for (size_t i = 0; i < gateList.size(); ++i) {
+    if (gateList[i]) {
+      GateList& out = gateList[i]->outputs;
+      for (size_t j = 0; j < out.size(); ++j)
+        if (out[j]== NULL) out.erase(out.begin()+j);
+    }
+  }
+  for (size_t i = 0; i < gateList.size(); ++i) {
+    if (gateList[i]) {
+      if (gateList[i]->getType() == UNDEF_GATE && gateList[i]->getOutputs().empty())
+      delete gateList[i];
+    }
+  }
+  /*creatDFS();*/
+  resetFlag();
 }
 
 // Recursively simplifying from POs;
