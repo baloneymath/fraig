@@ -45,8 +45,9 @@ CirMgr::sweep()
     }
     else if (gateList[i]->getType() == UNDEF_GATE) {
       GateList& out = gateList[i]->outputs;
+      flag = true;
       for (size_t j = 0; j < out.size(); ++j)
-        flag = check(out[j]);
+        if (!check(out[j])) flag = false;
     }
     if (!flag) {
       cout << "Sweeping: " << gateList[i]->getTypeStr();
@@ -77,9 +78,6 @@ CirMgr::check(CirGate* g)
 void
 CirMgr::optimize()
 {
-  for (size_t i = 0; i < DFSList.size(); ++i) {
-    
-  }
 }
 
 /***************************************************/
