@@ -568,7 +568,7 @@ CirMgr::readCircuit(const string& fileName)
 
 
     f.close();
-    return true;
+    return ok;
 }
 
 /**********************************************************/

@@ -48,7 +48,7 @@ class CirMgr
         bool check(CirGate*);
 
         void optimize();
-        void merge(CirGate*, CirGate*, size_t);
+        void merge(CirGate*, CirGate*, size_t, std::string);
         // Member functions about simulation
         void randomSim();
         void fileSim(ifstream&);

@@ -47,8 +47,10 @@ CirMgr::sweep()
       IDList& fanout = _gateList[i]->_fanout;
       flag = true;
       for (size_t j = 0; j < fanout.size(); ++j)
-        if (!check(getGate(fanout[j]))) flag = false;
+        if (!check((CirGate*)(fanout[j] & ~(size_t)(0x1)))) flag = false;
     }
+
+
     if (!flag) {
       cout << "Sweeping: " << _gateList[i]->getTypeStr();
       cout << '(' << _gateList[i]->getId() << ") removed..." << endl;
@@ -58,7 +60,8 @@ CirMgr::sweep()
     else {
       IDList& fanout = _gateList[i]->_fanout;
       for (size_t j = 0; j < fanout.size(); ++j)
-        if (!check(getGate(fanout[j]))) fanout.erase(fanout.begin()+j);
+        if (!check((CirGate*)(fanout[j] & ~(size_t)(0x1))))
+          fanout.erase(fanout.begin()+(j--));
     }
   }
 }
@@ -66,8 +69,10 @@ CirMgr::sweep()
 bool
 CirMgr::check(CirGate* g)
 {
-  for (size_t k = 0; k < _dfsList.size(); ++k)
+  for (size_t k = 0; k < _dfsList.size(); ++k) {
+    if (_dfsList[k] == NULL) continue;
     if (g == _dfsList[k]) return true;
+  }
   return false;
 }
 
@@ -86,21 +91,21 @@ CirMgr::optimize()
 
     // both fanins are the same
     if (fanin[0] == fanin[1]) {
-      merge(_dfsList[i], in[0], fanin[0]&1);
+      merge(_dfsList[i], in[0], fanin[0]&1, "Simplifying: ");
     }
     // one fanin is the inverse of the other
     else if (in[0] == in[1]) {
-      merge(_dfsList[i], _gateList[0], 0);
+      merge(_dfsList[i], _gateList[0], 0, "Simplifying: ");
     }
     // one of the fanin is 0
     else if (fanin[0] == (size_t)_gateList[0] || fanin[1] == (size_t)_gateList[0]) {
-      merge(_dfsList[i], _gateList[0], 0);
+      merge(_dfsList[i], _gateList[0], 0, "Simplifying: ");
     }
 
     // one of the fanin is 1
     else if (in[0] == _gateList[0] || in[1] == _gateList[0]) {
-      if (in[0] == _gateList[0]) merge(_dfsList[i], in[1], fanin[1]&1);
-      else merge(_dfsList[i], in[0], fanin[0]&1);
+      if (in[0] == _gateList[0]) merge(_dfsList[i], in[1], fanin[1]&1, "Simplifying: ");
+      else merge(_dfsList[i], in[0], fanin[0]&1, "Simplifying: ");
     }
     // none of the cases above
     else continue;
@@ -113,8 +118,8 @@ CirMgr::optimize()
       }
       // remove the UNDEF_GATE with NULL fanout
       if (in[j]->getType() == UNDEF_GATE && in[j]->_fanout.size() == 0) {
-        delete _gateList[in[j]->getId()];
         _gateList[in[j]->getId()] = NULL;
+        delete in[j];
       }
     }
     // remove the Gate which's merged
@@ -134,18 +139,18 @@ CirMgr::optimize()
 // inv is going to make the inverse bit right
 // so it need to use a XOR compute with the fanout's fanin's inverse bit
 void
-CirMgr::merge(CirGate* old, CirGate* New, size_t inv)
+CirMgr::merge(CirGate* old, CirGate* New, size_t inv, std::string messege)
 {
   for (size_t i = 0; i < old->_fanout.size(); ++i) {
     CirGate* out = (CirGate*)(old->_fanout[i] & ~(size_t)(0x1));
     IDList& outs_in = out->_fanin;
     for (size_t j = 0; j < outs_in.size(); ++j) {
       if ( (CirGate*)(outs_in[j] & ~(size_t)(0x1)) == old) {
-        outs_in[j] = ( (size_t)New | (size_t)(inv ^ (outs_in[j]&1)) );
+        outs_in[j] = ( (size_t)New | (size_t)((inv&1) ^ (outs_in[j]&1)) );
         New->_fanout.push_back( (size_t)out | (size_t)(outs_in[j]&1) );// cannot XOR again
       }
     }
   }
-  cout << "Simplifying: " << New->getId() << " merging "
+  cout << messege << New->getId() << " merging "
     << (inv? "!":"") << old->getId() << "...\n";
 }

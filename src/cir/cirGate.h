@@ -40,7 +40,7 @@ class CirGate
         unsigned getLineNo() const { return _lineNum; }
         unsigned getId() const { return _id; }
         virtual bool isAig() const { return false; }
-        virtual GateType getType() const  { return UNDEF_GATE; }
+        virtual GateType getType() const { return TOT_GATE; }
 
         // Printing functions
         virtual void printGate() const {}
