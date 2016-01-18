@@ -98,11 +98,21 @@ int main()
    genProofModel(solver);
 
    bool result;
-   // Solve(Gate(3) && Gate(6))
+   // k = Solve(Gate(5) ^ !Gate(8))
    Var newV = solver.newVar();
    solver.addXorCNF(newV, gates[5]->getVar(), false, gates[8]->getVar(), true);
    solver.assumeRelease();  // Clear assumptions
-   solver.assumeProperty(newV, true);  // Gate(3) = 1
+   solver.assumeProperty(newV, true);  // k = 1
+   result = solver.assumpSolve();
+   reportResult(solver, result);
+
+   cout << endl << endl << "======================" << endl;
+
+   // k = Solve(Gate(3) & !Gate(7))
+   newV = solver.newVar();
+   solver.addAigCNF(newV, gates[3]->getVar(), false, gates[7]->getVar(), true);
+   solver.assumeRelease();  // Clear assumptions
+   solver.assumeProperty(newV, true);  // k = 1
    result = solver.assumpSolve();
    reportResult(solver, result);
 }

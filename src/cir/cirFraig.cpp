@@ -34,6 +34,10 @@ using namespace std;
 void
 CirMgr::strash()
 {
+  HashMap myMap;
+  for (size_t i = 0; i < _dfsList.size(); ++i) {
+    myMap.insert(_dfsList[i]->_fanin, _dfsList[i]);
+  }
 }
 
 void

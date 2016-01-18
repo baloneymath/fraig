@@ -17,22 +17,25 @@ using namespace std;
 // TODO: define your own typedef or enum
 
 class CirGate;
+class CirPiGate;
+class CirPoGate;
+class ConstGate;
+class CirAigGate;
 class CirMgr;
 class SatSolver;
 
-
-typedef vector<CirGate*>  GateList;
-typedef vector<unsigned>  IdList;
+typedef vector<CirGate*> GateList;
+typedef vector<size_t> IDList;
 
 enum GateType
-{
-  UNDEF_GATE = 0,
-  PI_GATE    = 1,
-  PO_GATE    = 2,
-  AIG_GATE   = 3,
-  CONST_GATE = 4,
+{   
+    UNDEF_GATE = 0,
+    PI_GATE = 1,
+    PO_GATE = 2, 
+    AIG_GATE = 3,
+    CONST_GATE = 4,
 
-  TOT_GATE
+    TOT_GATE
 };
 
 #endif // CIR_DEF_H

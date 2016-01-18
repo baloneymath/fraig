@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <ctype.h>
+#include <set>
 #include <cassert>
 #include <cstring>
 #include "cirMgr.h"
@@ -26,47 +27,27 @@ using namespace std;
 /*******************************/
 CirMgr* cirMgr = 0;
 
-void getTokens (const string& option, vector<string>& tokens) {
-  string token;
-  size_t n = myStrGetTok(option, token);
-  while (token.size()) {
-    tokens.push_back(token);
-    n = myStrGetTok(option, token, n);
-  }
-}
-
-unsigned str2Unsigned (const string& str) {
-  unsigned num = 0;
-  for (size_t i = 0; i < str.size(); ++i) {
-    if (isdigit(str[i])) {
-      num *= 10;
-      num += int(str[i] - '0');
-    }
-    else return num;
-  }
-  return num;
-}
 enum CirParseError {
-  EXTRA_SPACE,
-  MISSING_SPACE,
-  ILLEGAL_WSPACE,
-  ILLEGAL_NUM,
-  ILLEGAL_IDENTIFIER,
-  ILLEGAL_SYMBOL_TYPE,
-  ILLEGAL_SYMBOL_NAME,
-  MISSING_NUM,
-  MISSING_IDENTIFIER,
-  MISSING_NEWLINE,
-  MISSING_DEF,
-  CANNOT_INVERTED,
-  MAX_LIT_ID,
-  REDEF_GATE,
-  REDEF_SYMBOLIC_NAME,
-  REDEF_CONST,
-  NUM_TOO_SMALL,
-  NUM_TOO_BIG,
+    EXTRA_SPACE,
+    MISSING_SPACE,
+    ILLEGAL_WSPACE,
+    ILLEGAL_NUM,
+    ILLEGAL_IDENTIFIER,
+    ILLEGAL_SYMBOL_TYPE,
+    ILLEGAL_SYMBOL_NAME,
+    MISSING_NUM,
+    MISSING_IDENTIFIER,
+    MISSING_NEWLINE,
+    MISSING_DEF,
+    CANNOT_INVERTED,
+    MAX_LIT_ID,
+    REDEF_GATE,
+    REDEF_SYMBOLIC_NAME,
+    REDEF_CONST,
+    NUM_TOO_SMALL,
+    NUM_TOO_BIG,
 
-  DUMMY_END
+    DUMMY_END
 };
 
 /**************************************/
@@ -79,232 +60,515 @@ static string errMsg;
 static int errInt;
 static CirGate *errGate;
 
-  static bool
+    static bool
 parseError(CirParseError err)
 {
-  switch (err) {
-    case EXTRA_SPACE:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Extra space character is detected!!" << endl;
-      break;
-    case MISSING_SPACE:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Missing space character!!" << endl;
-      break;
-    case ILLEGAL_WSPACE: // for non-space white space character
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Illegal white space char(" << errInt
-        << ") is detected!!" << endl;
-      break;
-    case ILLEGAL_NUM:
-      cerr << "[ERROR] Line " << lineNo+1 << ": Illegal "
-        << errMsg << "!!" << endl;
-      break;
-    case ILLEGAL_IDENTIFIER:
-      cerr << "[ERROR] Line " << lineNo+1 << ": Illegal identifier \""
-        << errMsg << "\"!!" << endl;
-      break;
-    case ILLEGAL_SYMBOL_TYPE:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Illegal symbol type (" << errMsg << ")!!" << endl;
-      break;
-    case ILLEGAL_SYMBOL_NAME:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Symbolic name contains un-printable char(" << errInt
-        << ")!!" << endl;
-      break;
-    case MISSING_NUM:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Missing " << errMsg << "!!" << endl;
-      break;
-    case MISSING_IDENTIFIER:
-      cerr << "[ERROR] Line " << lineNo+1 << ": Missing \""
-        << errMsg << "\"!!" << endl;
-      break;
-    case MISSING_NEWLINE:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": A new line is expected here!!" << endl;
-      break;
-    case MISSING_DEF:
-      cerr << "[ERROR] Line " << lineNo+1 << ": Missing " << errMsg
-        << " definition!!" << endl;
-      break;
-    case CANNOT_INVERTED:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": " << errMsg << " " << errInt << "(" << errInt/2
-        << ") cannot be inverted!!" << endl;
-      break;
-    case MAX_LIT_ID:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Literal \"" << errInt << "\" exceeds maximum valid ID!!"
-        << endl;
-      break;
-    case REDEF_GATE:
-      cerr << "[ERROR] Line " << lineNo+1 << ": Literal \"" << errInt
-        << "\" is redefined, previously defined as "
-        << errGate->getTypeStr() << " in line " << errGate->getLineNo()
-        << "!!" << endl;
-      break;
-    case REDEF_SYMBOLIC_NAME:
-      cerr << "[ERROR] Line " << lineNo+1 << ": Symbolic name for \""
-        << errMsg << errInt << "\" is redefined!!" << endl;
-      break;
-    case REDEF_CONST:
-      cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
-        << ": Cannot redefine const (" << errInt << ")!!" << endl;
-      break;
-    case NUM_TOO_SMALL:
-      cerr << "[ERROR] Line " << lineNo+1 << ": " << errMsg
-        << " is too small (" << errInt << ")!!" << endl;
-      break;
-    case NUM_TOO_BIG:
-      cerr << "[ERROR] Line " << lineNo+1 << ": " << errMsg
-        << " is too big (" << errInt << ")!!" << endl;
-      break;
-    default: break;
-  }
-  return false;
+    switch (err) {
+        case EXTRA_SPACE:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Extra space character is detected!!" << endl;
+            break;
+        case MISSING_SPACE:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Missing space character!!" << endl;
+            break;
+        case ILLEGAL_WSPACE: // for non-space white space character
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Illegal white space char(" << errInt
+                << ") is detected!!" << endl;
+            break;
+        case ILLEGAL_NUM:
+            cerr << "[ERROR] Line " << lineNo+1 << ": Illegal "
+                << errMsg << "!!" << endl;
+            break;
+        case ILLEGAL_IDENTIFIER:
+            cerr << "[ERROR] Line " << lineNo+1 << ": Illegal identifier \""
+                << errMsg << "\"!!" << endl;
+            break;
+        case ILLEGAL_SYMBOL_TYPE:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Illegal symbol type (" << errMsg << ")!!" << endl;
+            break;
+        case ILLEGAL_SYMBOL_NAME:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Symbolic name contains un-printable char(" << errInt
+                << ")!!" << endl;
+            break;
+        case MISSING_NUM:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Missing " << errMsg << "!!" << endl;
+            break;
+        case MISSING_IDENTIFIER:
+            cerr << "[ERROR] Line " << lineNo+1 << ": Missing \""
+                << errMsg << "\"!!" << endl;
+            break;
+        case MISSING_NEWLINE:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": A new line is expected here!!" << endl;
+            break;
+        case MISSING_DEF:
+            cerr << "[ERROR] Line " << lineNo+1 << ": Missing " << errMsg
+                << " definition!!" << endl;
+            break;
+        case CANNOT_INVERTED:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": " << errMsg << " " << errInt << "(" << errInt/2
+                << ") cannot be inverted!!" << endl;
+            break;
+        case MAX_LIT_ID:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Literal \"" << errInt << "\" exceeds maximum valid ID!!"
+                << endl;
+            break;
+        case REDEF_GATE:
+            cerr << "[ERROR] Line " << lineNo+1 << ": Literal \"" << errInt
+                << "\" is redefined, previously defined as "
+                << errGate->getTypeStr() << " in line " << errGate->getLineNo()
+                << "!!" << endl;
+            break;
+        case REDEF_SYMBOLIC_NAME:
+            cerr << "[ERROR] Line " << lineNo+1 << ": Symbolic name for \""
+                << errMsg << errInt << "\" is redefined!!" << endl;
+            break;
+        case REDEF_CONST:
+            cerr << "[ERROR] Line " << lineNo+1 << ", Col " << colNo+1
+                << ": Cannot redefine const (" << errInt << ")!!" << endl;
+            break;
+        case NUM_TOO_SMALL:
+            cerr << "[ERROR] Line " << lineNo+1 << ": " << errMsg
+                << " is too small (" << errInt << ")!!" << endl;
+            break;
+        case NUM_TOO_BIG:
+            cerr << "[ERROR] Line " << lineNo+1 << ": " << errMsg
+                << " is too big (" << errInt << ")!!" << endl;
+            break;
+        default: break;
+    }
+    return false;
+}
+
+//  --------- READING FUCNTIONS ----------------
+//  This part is a copy and paste from others
+
+#define BUFFER_SIZE 1024
+#define BUFFER_SIZE_SAFE (BUFFER_SIZE - 1)
+
+
+enum ParseState {
+    STATE_INITIAL,
+    STATE_HEADER,
+    STATE_PI,
+    STATE_PO,
+    STATE_AIG,
+    STATE_SYMBOL,
+    STATE_FINISHED,
+
+    STATE_DUMMY
+};
+static ParseState state = STATE_DUMMY;
+
+
+// due to some errors are universal but state-dependent,
+// when reading or consuming fails, this function is called
+// to make an approperiate error message based on internal state
+// these "stateful" errors are:
+//   * ILLEGAL_NUM
+//   * MISSING_NUM
+//   * MISSING_IDENTIFIER
+//   * MISSING_DEF
+// this function is only intended to emit an error,
+// do not retreat or touch the buffer here!!
+static void emitStatefulError(CirParseError pe) {
+    static const string headerErrMsg[5] = { "vars", "PIs", "latches", "POs", "AIGs" };
+    bool doSuffix = false;
+    switch (state) {
+        case STATE_HEADER: errMsg = "number of " + headerErrMsg[errInt]; break;
+        case STATE_PI: errMsg = "PI"; doSuffix = true; break;
+        case STATE_PO: errMsg = "PO"; doSuffix = true; break;
+        case STATE_AIG: errMsg = "AIG"; doSuffix = true; break;
+        case STATE_SYMBOL:
+                        if (pe == ILLEGAL_NUM)
+                            errMsg = "symbol index";
+                        else if (pe == MISSING_IDENTIFIER)
+                            errMsg = "symbolic name";
+                        break;
+        default: break;
+    }
+    if (pe == MISSING_NUM)
+        if (doSuffix) errMsg += " literal ID";
+
+    throw pe;
+}
+
+static inline bool isTerminatingChar(char c) {
+    return (c == ' ' || c == '\n');
+}
+
+static inline bool isDigit(char c) {
+    return (c >= '0' && c <= '9');
+}
+
+
+static char readChar(istream& f) {
+    char ch = f.get();
+    if (ch < 0) return ch; // EOF; do not raise error
+    if (ch < 32 && ch != '\n') {
+        errInt = (int)ch;
+        throw ILLEGAL_WSPACE;
+    }
+    colNo++;
+    return ch;
+}
+
+// unget a character from the stream
+// update colNo accordingly (sorry, only within a line)
+static bool retreatChar(istream& f) {
+    if (colNo == 0) return false;
+    colNo--;
+    f.unget();
+    return true;
+}
+
+// count colNo backward BASED ON THE INTERNAL BUFFER
+// dangerous!! retreating more than once causes troubles
+static bool rejectBuffer() {
+    size_t bp = 0;
+    while (buf[bp] != '\0') {
+        bp++;
+        if (bp >= BUFFER_SIZE_SAFE) return false;
+    }
+    if (colNo < bp) {
+        // should not happen
+        colNo = 0;
+        return false;
+    }
+    colNo -= bp;
+    return true;
+}
+
+// read an unsigned integer until a space
+// ### exceptions: EXTRA_SPACE ###
+// ### stateful  : MISSING_DEF, ILLEGAL_NUM, MISSING_NUM ###
+static unsigned readUint(istream& f) {
+    size_t bp = 0;
+    char ch = '\0';
+    while (bp < BUFFER_SIZE_SAFE) {
+        ch = readChar(f);
+        if (isTerminatingChar(ch)) {
+            retreatChar(f);
+            if (bp == 0 && ch == ' ')
+                throw EXTRA_SPACE;
+            break;
+        } else if (ch < 0) {
+            emitStatefulError(MISSING_DEF);
+            break;
+        }
+        if (!isDigit(ch))
+            emitStatefulError(ILLEGAL_NUM);
+
+        buf[bp++] = ch;
+    }
+    if (bp == 0) {
+        // read number failed
+        emitStatefulError(MISSING_NUM);
+    }
+    buf[bp] = '\0';
+    // cout << "read num " << buf << endl;
+    return atoi(buf);
+}
+
+// read a string (can contain spaces) until line end
+// if readWord is set, stop at a "terminating" char (ie. a space)
+// ### stateful: MISSING_IDENTIFIER ###
+static string readStr(istream& f, bool readWord = false, unsigned maxlen = 0) {
+    size_t bp = 0;
+    char ch = '\0';
+    if (maxlen > BUFFER_SIZE_SAFE) maxlen = BUFFER_SIZE_SAFE;
+    while (maxlen == 0 || bp < maxlen) {
+        ch = readChar(f);
+        if (ch == '\n' || (readWord && isTerminatingChar(ch))) {
+            retreatChar(f);
+            break;
+        }
+        buf[bp++] = ch;
+    }
+    if (bp == 0) {
+        // read string failed
+        emitStatefulError(MISSING_IDENTIFIER);
+    }
+    buf[bp] = '\0';
+    string rtn(buf);
+    // cout << "read str [" << buf << "]" << endl;
+    return rtn;
+}
+
+// a space after the header is then excepted
+// return whether this check is passed
+// if not, more string should be read before crashing
+// ### exceptions: MISSING_IDENTIFIER, EXTRA_SPACE, ILLEGAL_IDENTIFIER ###
+static bool consumeAagHeader(istream& f) {
+    static const string AAG_HEADER = "aag";
+    char ch = f.peek();
+    if (ch < 0) {
+        errMsg = AAG_HEADER;
+        throw MISSING_IDENTIFIER;
+    }
+    if (f.peek() == ' ') throw EXTRA_SPACE;
+
+    string str = readStr(f, true, 3);
+    if (str != AAG_HEADER)
+        throw ILLEGAL_IDENTIFIER;
+
+    return isTerminatingChar(f.peek());
+}
+
+// ### exceptions: MISSING_SPACE ###
+static bool consumeSpace(istream& f) {
+    char ch = f.get();
+    if (ch != ' ') throw MISSING_SPACE;
+    colNo++;
+    return true;
+}
+
+// ### exceptions: MISSING_NEWLINE ###
+static bool consumeNewline(istream& f) {
+    char ch = f.get();
+    if (ch != '\n') throw MISSING_NEWLINE;
+    colNo = 0;
+    lineNo++;
+    return true;
+}
+
+// ### exceptions: MAX_LIT_ID, REDEF_CONST, REDEF_GATE, CANNOT_INVERTED ###
+static void checkLiteralID(CirMgr* mgr, unsigned gid, bool checkEven, bool checkUnique = true) {
+    if (gid / 2 > mgr->_maxNum()) {
+        errInt = gid; rejectBuffer();
+        throw MAX_LIT_ID;
+    }
+    if (checkUnique) {
+        errGate = mgr->getGate(gid / 2);
+        if (gid / 2 == 0) {
+            errInt = gid; rejectBuffer();
+            throw REDEF_CONST;
+        } else if (errGate != 0 && errGate->getType() != UNDEF_GATE) {
+            errInt = gid;
+            throw REDEF_GATE;
+        }
+    }
+    if (checkEven && gid % 2 != 0) {
+        errInt = gid; rejectBuffer();
+        throw CANNOT_INVERTED;
+    }
 }
 
 /**************************************************************/
 /*   class CirMgr member functions for circuit construction   */
 /**************************************************************/
-CirMgr::~CirMgr() {
-  for (GateList::iterator it = gateList.begin(); it != gateList.end(); ++it)
-    if((*it) != 0)	delete (*it);
-  gateList.clear();
-}
-
-CirGate* CirMgr::getGate(unsigned gid) const {
-  if (gid >= vars + outs + 1)	return 0;
-  return gateList[gid];
-}
-
-CirGate* CirMgr::createUndef(unsigned gid) {
-  gateList[gid] = new CirGate(UNDEF_GATE, 0, gid);
-  return getGate(gid);
-}
-
-void CirMgr::resetFlag() const {
-  for (unsigned i = 0, size = vars + outs + 1; i < size; ++i) {
-    CirGate *g = getGate(i);
-    if (g != 0)	g->flag = false;
-  }
-}
-
-  bool
+bool
 CirMgr::readCircuit(const string& fileName)
-{
-  ifstream ifs(fileName.c_str(), ifstream::in);
-  if (! ifs.is_open())	return false;
-  string line;
-  char c;
-  vector<string> circuit;
-  if (!ifs.is_open())	return false;
-  while (ifs.get(c)) {
-    if (c == '\n')	{
-      circuit.push_back(line);
-      line = "";
+{   ifstream f(fileName.c_str());
+    if (!f.is_open())
+    {   cerr << "Cannot open design \"" << fileName << "\"!!" << endl;
+        return false;
     }
-    else line += c;
-  }
-  if (line != "")	circuit.push_back(line);
-  ifs.close();
 
-  if (circuit.empty())	return false;
+    bool ok = true;
+    try
+    {   lineNo = colNo = 0;
+        // Header
+        state = STATE_HEADER;
+        if (!consumeAagHeader(f))
+        {   if(isDigit(f.peek()))   throw MISSING_SPACE;
+            errMsg =  "aag" + readStr(f, true);
+            throw ILLEGAL_IDENTIFIER;
+        }
 
-  vector<string> tokens;
-  getTokens(circuit[0], tokens);
-  if (tokens.size() != 6)	{
-    cout << circuit[0] << endl;
-    cout << fileName << " error format, first line size: " << tokens.size() << endl;
-    return false;
-  }
-  vars = str2Unsigned(tokens[1]);	ins = str2Unsigned(tokens[2]);
-  outs = str2Unsigned(tokens[4]);	ands = str2Unsigned(tokens[5]);
-  if (circuit.size() <= (unsigned)(ins + outs + 1)) {
-    cout << fileName << " error format, circuit size: " << circuit.size() << endl;
-    return false;
-  }
-  gateList.resize(vars + outs + 1, 0);
-  gateList[0] = new CirGate(CONST_GATE, 0, 0);
-  // gateList.push_back(new CirGate(CONST_GATE, 0, 0));
+        try
+        {   for (errInt = 0; errInt < 5; ++errInt)
+            {   consumeSpace(f);
+                _params[errInt] = readUint(f);
+            }
+        }
+        catch (CirParseError err)
+        {   if (err == ILLEGAL_NUM)
+            {   retreatChar(f);
+                errMsg = errMsg + "(" + readStr(f, true) + ")";
+            }
+            throw err;
+        }
 
-  for (unsigned i = 0; i < ins; ++i) {
-    unsigned id = str2Unsigned(circuit[i + 1]);
-    gateList[id / 2] = new CirGate(PI_GATE, i + 2, id / 2);
-    // gateList.push_back(new CirGate(PI_GATE, i + 2, id / 2));
-  }
-  for (unsigned i = ins + outs; i < ins + outs + ands; ++i) {
-    unsigned id = str2Unsigned(circuit[i + 1]);
-    gateList[id / 2] = new CirGate(AIG_GATE, i + 2, id / 2);
-    // gateList.push_back(new CirGate(AIG_GATE, i + 2, id / 2));
-  }
-  for (unsigned i = ins + outs; i < ins + outs + ands; ++i) {
-    vector<string> temps;
-    getTokens(circuit[i + 1], temps);
-    CirGate* g1 = getGate(str2Unsigned(temps[0]) / 2);
-    unsigned n1 = str2Unsigned(temps[1]), n2 = str2Unsigned(temps[2]);
-    CirGate *g2 = getGate(n1 / 2);
-    if (g2 == 0)	g2 = createUndef(n1 / 2);
-    CirGate *g3 = getGate(n2 / 2);
-    if (g3 == 0)	g3 = createUndef(n2 / 2);
-    g1->addInput(g2, n1 % 2);
-    g2->addOutput(g1);
-    g1->addInput(g3, n2 % 2);
-    g3->addOutput(g1);
-  }
-  for (unsigned i = ins; i < ins + outs; ++i) {
-    unsigned n = str2Unsigned(circuit[i + 1]);
-    CirGate 	*g = new CirGate(PO_GATE, i + 2, vars + i + 1 - ins),
-                *gi = getGate(n / 2);
-    if (gi == 0)	createUndef(n / 2);
-    g->addInput(gi, n % 2);
-    gi->addOutput(g);
+        consumeNewline(f); lineNo--;  // Assert a newline, check Err first
 
-    gateList[vars + i + 1 - ins] = g;
-    // gateList.push_back(g);
-  }
-  unsigned symbol = ins + outs + ands + 1, listSize = circuit.size();
-  while (symbol < listSize) {
-    string s = circuit[symbol++];
-    if (s == "c")	break;
-    bool input;
-    if (s[0] == 'i')	input = true;
-    else if (s[0] == 'o')	input = false;
-    else {
-      cout << "error: " << s << endl;
-      break;
+        if (_params[0] < _params[1] + _params[2] + _params[4])  // M < I + L + A
+        {   errInt = _params[0];
+            errMsg = "Num of variables";
+            throw NUM_TOO_SMALL;
+        }
+        // No latch please.
+        if (_params[2])
+        {   errMsg = "latches";
+            throw ILLEGAL_NUM;
+        }
+
+        lineNo++; // Header Finished
+        _gateList.resize(_params[0]+ _params[3]+1);   // Reserve Space first
+        _piList.reserve(_params[1]);
+        _poList.reserve(_params[3]);
+        _gateList[0] = new ConstGate();
+
+        // Reading some input
+        state = STATE_PI;
+        for (int i = 0; i < _params[1]; i++)
+        {   unsigned lid = readUint(f);
+            checkLiteralID(this, lid, true);
+            _piList.push_back(new CirPiGate(lid/2, lineNo+1));
+            _gateList[lid/2] = _piList[i];
+            consumeNewline(f);
+        }
+        // READING SOME OUTPUT
+        state = STATE_PO;
+        for (int i = 0; i < _params[3]; i++)
+        {   unsigned lid = readUint(f);
+            checkLiteralID(this, lid, false, false);
+            _poList.push_back(new CirPoGate(_params[0]+1+i, lineNo+1));  // Output gate ID is larger.
+            _gateList[_params[0]+1+i] = _poList[i];
+
+            if (_gateList[lid/2] == 0) // If gate is not yet created, do it.
+                _gateList[lid/2] = new CirAigGate(lid/2, 0);
+
+            // Add the pointer into the fanin list
+            // Last Bit represent invert.
+            _poList[i]->_fanin.push_back((size_t)_gateList[lid/2] | (size_t) (lid & 1));
+            _gateList[lid/2]->_fanout.push_back((size_t) _poList[i] | (size_t) (lid & 1));
+
+            consumeNewline(f);
+        }
+
+        // OK Let's do AIGGate
+        state = STATE_AIG;
+        for (int i = 0; i < _params[4]; i++)
+        {   unsigned rhs, lhs1, lhs2;
+            rhs = readUint(f);
+            checkLiteralID(this, rhs, true);
+            consumeSpace(f);
+
+            lhs1 = readUint(f);
+            checkLiteralID(this, lhs1, false, false);
+            consumeSpace(f);
+
+            lhs2 = readUint(f);
+            checkLiteralID(this, lhs2, false, false);
+
+            // Not yet created even as UNDEF_GATE
+            if (_gateList[rhs/2] == 0) _gateList[rhs/2] = new CirAigGate(rhs/2, lineNo+1);
+            if (_gateList[lhs1/2] == 0) _gateList[lhs1/2] = new CirAigGate(lhs1/2, 0);
+            if (_gateList[lhs2/2] == 0) _gateList[lhs2/2] = new CirAigGate(lhs2/2, 0);
+
+            // Change from UNDEF_GATE to AIGGate
+            _gateList[rhs/2]->_lineNum = lineNo+1;
+
+            // Handle lhs1 Fanin and Fanout
+            _gateList[rhs/2]->_fanin.push_back((size_t) _gateList[lhs1/2] | (size_t) (lhs1 & 1));
+            _gateList[lhs1/2]->_fanout.push_back((size_t) _gateList[rhs/2] | (size_t) (lhs1 & 1));
+
+            // Handle lhs2 Fanin and Fanout
+            _gateList[rhs/2]->_fanin.push_back((size_t) _gateList[lhs2/2] | (size_t) (lhs2 & 1));
+            _gateList[lhs2/2]->_fanout.push_back((size_t) _gateList[rhs/2] | (size_t) (lhs2 & 1));
+            consumeNewline(f);
+        }
+
+        // Symbols
+        state = STATE_SYMBOL;
+
+        int ls;   // PI or PO
+        while (true)
+        {   ls = 0;
+
+            char symbolType = readChar(f);
+            string c;
+            switch(symbolType)
+            {   case 'i': ls = 1; break;
+                case 'o': ls = 2; break;
+                case 'c':
+                    consumeNewline(f);
+                    while (getline(f, c))
+                        _comments.push_back(c);
+                    break;
+                case -1: break;  // EOF
+                case ' ': retreatChar(f); throw EXTRA_SPACE; break;
+                case '\n': retreatChar(f); errMsg = "symbol type"; throw MISSING_IDENTIFIER; break;
+                default: retreatChar(f); errMsg = symbolType; throw ILLEGAL_SYMBOL_TYPE; break;
+            }
+
+            if (!ls) break;
+
+            unsigned cnt;
+            try { cnt = readUint(f); }
+            catch (CirParseError err)
+            {   if (err == ILLEGAL_NUM)
+                {   retreatChar(f);
+                    errMsg = errMsg + "(" + readStr(f, true) + ")";
+                }
+                throw err;
+            }
+            consumeSpace(f);
+
+            if (ls == 1)
+            {   if (cnt >= _piList.size())
+                {   errMsg = "PI index";
+                    errInt = cnt;
+                    throw NUM_TOO_BIG;
+                }
+            }
+            else if (ls == 2)
+            {   if (cnt >= _poList.size())
+                {   errMsg = "PO index";
+                    errInt = cnt;
+                    throw NUM_TOO_BIG;
+                }
+            }
+
+            try { errMsg = readStr(f); }
+            catch (CirParseError err)
+            {   if(err == ILLEGAL_WSPACE) throw ILLEGAL_SYMBOL_NAME;
+                throw err;
+            }
+
+            if (ls == 1)
+            {   errGate = _piList[cnt];
+                if (!_piList[cnt]->_name.empty())
+                {   errMsg = symbolType;
+                    errInt = cnt;
+                    throw REDEF_SYMBOLIC_NAME;
+                }
+                _piList[cnt]->_name = errMsg;
+            }
+            else if (ls == 2)
+            {   errGate = _poList[cnt];
+                if (!_poList[cnt]->_name.empty())
+                {   errMsg = symbolType;
+                    errInt = cnt;
+                    throw REDEF_SYMBOLIC_NAME;
+                }
+                _poList[cnt]->_name = errMsg;
+            }
+
+            consumeNewline(f);
+        }
+
+        state = STATE_FINISHED;
     }
-    tokens.clear();
-    getTokens(s, tokens);
-    if (tokens.size() != 2)	cout << "error: " << s << endl;
-    unsigned ith = str2Unsigned(tokens[0].substr(1));
-    if (input)	getGate(str2Unsigned(circuit[ith + 1]) / 2)->setSymbol(tokens[1]);
-    else			getGate(vars + ith + 1)->setSymbol(tokens[1]);
-    // if (input)	gateList[ith + 1]->setSymbol(tokens[1]);
-    // else			gateList[ith + 1 + ins + ands]->setSymbol(tokens[1]);
-  }
-  for (size_t i = 0; i < gateList.size(); ++i) {
-    if (gateList[i] && gateList[i]->getType() == PO_GATE)
-      DFS(gateList[i]);
-  }
-  resetFlag();
-
-  return true;
-}
-
-void
-CirMgr::DFS(CirGate* c) {
-  c->flag = true;
-  GateList in = c->getInputs();
-  for (size_t i = 0; i < in.size(); ++i) {
-    if (in[i] && !in[i]->flag) {
-      if (in[i]->getType() != UNDEF_GATE)
-        DFS(in[i]);
+    catch (CirParseError err)
+    {   ok = false;
+        parseError(err);
     }
-  }
-  DFSList.push_back(c);
+
+    buildDFSList();// Create DFS List
+
+
+
+    f.close();
+    return true;
 }
 
 /**********************************************************/
@@ -319,144 +583,129 @@ CirMgr::DFS(CirGate* c) {
   ------------------
   Total      162
  *********************/
+void CirMgr::buildDFSList()
+{   _dfsList.clear();
+    bool flag[_params[0]+_params[3]+1];
+    memset(flag, 0, sizeof(flag));
+    for (int i = 0, n = _poList.size(); i < n; ++i)
+        _poList[i]->netflow(flag, _dfsList);
+}
+
 void
 CirMgr::printSummary() const
-{
-  cout 	<< "\nCircuit Statistics\n"
-    << "==================\n"
-    << "  PI" << setw(12) << right << ins << "\n"
-    << "  PO" << setw(12) << right << outs << "\n"
-    << "  AIG" << setw(11) << right << ands << "\n"
-    << "------------------\n"
-    << "  Total" << setw(9) << right << ins + outs + ands << '\n';
+{   int total = 0;
+    cout << "Circuit Statistics" << endl;
+    cout << "==================" << endl;
+    cout << "  PI" <<  right << setw(12) << _params[1]<< endl;
+    total += _params[1];
+    cout << "  PO" <<  right << setw(12) << _params[3]<< endl;
+    total += _params[3];
+    cout << "  AIG" << right << setw(11) << _params[4] << endl;
+    total += _params[4];
+    cout << "------------------" << endl;
+    cout << "  Total" << right << setw(9) << total << endl;
 }
 
 void
 CirMgr::printNetlist() const
-{
-  cout << endl;
-  for (size_t i = 0; i < DFSList.size(); ++i) {
-    DFSList[i]->printGate();
-  }
-  CirGate::index = 0;
+{   cout << endl;
+    for (unsigned i = 0, n = _dfsList.size(); i < n; ++i)
+    {    cout << "[" << i << "] ";
+         _dfsList[i]->printGate();
+    }
 }
 
-void 
+void
 CirMgr::printPIs() const
 {
-  cout << "PIs of the circuit:";
-  for (size_t i = 0, size = vars + outs + 1, count = 0; i < size && count < ins; ++i) {
-    CirGate *g = getGate(i);
-    if (g != 0 && g->getType() == PI_GATE)
-      cout << " " << g->getGateId();
-  }
-  cout << endl;
+    cout << "PIs of the circuit:";
+    for (size_t i = 0; i < _piList.size(); ++i)
+        cout << " " << _piList[i]->_id;
+    cout << endl;
 }
 
 void
 CirMgr::printPOs() const
 {
-  cout << "POs of the circuit:";
-  for (size_t i = vars + 1, size = vars + outs + 1; i < size; ++i) {
-    CirGate *g = getGate(i);
-    if (g != 0 && g->getType() == PO_GATE)
-      cout << " " << g->getGateId();
-  }
-
-  cout << endl;
+    cout << "POs of the circuit:";
+    for (size_t i = 0; i < _poList.size(); ++i)
+        cout << " " << _poList[i]->_id;
+    cout << endl;
 }
 
 void
 CirMgr::printFloatGates() const
+{   set<int> p, q;
+    for (size_t i = 0; i < _gateList.size(); ++i)
+        if (_gateList[i]->getType() == UNDEF_GATE)
+        {   for (size_t j = 0; j < _gateList[i]->_fanout.size(); ++j)
+            {   CirGate* out = (CirGate*)(_gateList[i]->_fanout[j] & ~(size_t)(0x1));
+                p.insert(out->_id);
+            }
+        }
+        else if ( _gateList[i]->getType() == AIG_GATE && _gateList[i]->_fanout.size() == 0)
+            q.insert(_gateList[i]->_id);
+    if (p.size())
+    {   cout << "Gates with floating fanin(s):";
+        for (std::set<int>::iterator it=p.begin(); it!=p.end(); ++it)
+            cout << " " << *it;
+        cout << endl;
+    }
+    if (q.size())
+    {   cout << "Gates defined but not used:";
+        for (std::set<int>::iterator it=q.begin(); it!=q.end(); ++it)
+            cout << " " << *it;
+        cout << endl;
+    } } 
+void CirMgr::printFECPairs() const
 {
-  vector<unsigned> temp;
-  for (size_t i = 0, size = vars + outs + 1; i < size; ++i) {
-    CirGate* g = getGate(i);
-    if (g == 0)	continue;
-    if (g->getType() == PO_GATE && g->getInput(0)->getType() == UNDEF_GATE)
-      temp.push_back(g->getGateId());
-    else if (g->getType() == AIG_GATE &&
-        ( g->getInput(0)->getType() == UNDEF_GATE || 
-          g->getInput(1)->getType() == UNDEF_GATE ))
-      temp.push_back(g->getGateId());
-  }
-  if (!temp.empty()) {
-    cout << "Gates with floating fanin(s):";
-    for (size_t i = 0, size = temp.size(); i < size; ++i)
-      cout << ' ' << temp[i];
-    cout << endl;
-  }
-  temp.clear();
-
-  for (size_t i = 0, size = vars + outs + 1; i < size; ++i) {
-    CirGate* g = getGate(i);
-    if (g == 0)	continue;
-    if ((g->getType() == PI_GATE || g->getType() == AIG_GATE)
-        && g->getOutput(0) == 0)
-      temp.push_back(g->getGateId());
-  }
-  if (!temp.empty()) {
-    cout << "Gates defined but not used  :";
-    for (size_t i = 0, size = temp.size(); i < size; ++i)
-      cout << ' ' << temp[i];
-    cout << endl;
-  }
-}
-
-void
-CirMgr::printFECPairs() const
-{//TODO
 }
 
 void
 CirMgr::writeAag(ostream& outfile) const
-{
-  string s_aig = "";
-  unsigned aig = 0, count = 0;
-  for (unsigned i = vars + 1; i <= vars + outs + 1; ++i) {
-    CirGate *g = getGate(i);
-    if (g != 0 && g->getType() == PO_GATE)
-      g->printAig(s_aig, aig);
-  }
-  resetFlag();
+{   // header
+    outfile << "aag";
+    for (int i = 0; i < 5; ++i) outfile << " " << _params[i];
+    outfile << endl;
 
-  outfile	<< "aag " << vars << ' ' << ins << " 0 " << outs
-    << ' ' << aig << '\n';
-  vector<unsigned> ios;
-  ios.resize(ins);
-  for (unsigned i = 1; i <= ins && count < ins; ++i) {
-    CirGate *g = getGate(i);
-    if (g != 0 && g->getType() == PI_GATE) {
-      ios[g->getLineNo() - 2] = g->getGateId();
-      ++count;
+    // PI
+    for (size_t i = 0; i < _piList.size(); ++i)
+        outfile << _piList[i]->_id*2 << endl;
+
+    // PO
+    for (size_t i = 0; i < _poList.size(); ++i)
+    {   CirGate* ptr = (CirGate*)(_poList[i]->_fanin[0] & ~(size_t)(0x1));
+        outfile << ptr->_id*2 + (_poList[i]->_fanin[0] & 1) << endl;
     }
-  }
-  if (count != ins)	outfile << "count: " << count << ", ins: " << ins << endl;
-  for (unsigned i = 0; i < ins; ++i)	outfile << ios[i] * 2 << '\n';
 
-  for (unsigned i = vars + 1; i < vars + outs + 1; ++i) {
-    CirGate *g = getGate(i);
-    if (g == 0)	continue;
-    unsigned id = g->getInput(0)->getGateId() * 2;
-    if (g->isInv(0))	++id;
-    outfile << id << '\n';
-  }
-  outfile << s_aig;
-  for (unsigned i = 0; i < ins; ++i) {
-    string s = getGate(ios[i])->getSymbol();
-    if (s != "")	outfile << 'i' << i << ' ' << getGate(ios[i])->getSymbol() << '\n';
-  }
-  for (unsigned i = vars + 1; i < vars + outs + 1; ++i) {
-    if (getGate(i) == 0 || getGate(i)->getSymbol() == "") continue;
-    outfile << 'o' << i - vars - 1<< ' ' << getGate(i)->getSymbol() << '\n';
-  }
-  // Comment
-  outfile << 'c' << endl;
-  outfile << "AAG output by Hao Chen" << endl;
+    // AIG, only those in DFSList
+    for (size_t i = 0, s = _dfsList.size(); i < s; ++i)
+        if (_dfsList[i]->getType() == AIG_GATE)
+        {   outfile << (_dfsList[i]->getId() << 1);
+            for (unsigned j = 0, n = _dfsList[i]->_fanin.size(); j < n; ++j)
+            {   CirGate* ptr = (CirGate*)(_dfsList[i]->_fanin[j] & ~(size_t)0x1);
+                outfile << " " << ptr->_id*2 + (_dfsList[i]->_fanin[j] & 1);
+            }
+            outfile << endl;
+        }
+
+    for (size_t i = 0; i < _piList.size(); ++i)
+    {   if (_piList[i]->_name != "")
+            outfile << "i" << i << " " << _piList[i]->_name << endl;
+    }
+    for (size_t i = 0; i < _poList.size(); ++i)
+    {   if (_poList[i]->_name != "")
+            outfile << "o" << i << " " << _poList[i]->_name << endl;
+    }
+    if (_comments.size())
+    {   outfile << "c" << endl;
+        for (size_t i = 0; i < _comments.size(); ++i)
+            outfile << _comments[i] << endl;
+    }
+
 }
 
 void
 CirMgr::writeGate(ostream& outfile, CirGate *g) const
-{//TODO
+{
 }
-
