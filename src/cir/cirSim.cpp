@@ -15,6 +15,7 @@
 #include "cirGate.h"
 #include "util.h"
 
+
 using namespace std;
 
 // TODO: Keep "CirMgr::randimSim()" and "CirMgr::fileSim()" for cir cmd.
@@ -50,7 +51,11 @@ void
 CirMgr::fileSim(ifstream& patternFile)
 {
   string line;
-  vector<string> lines;
+  size_t inputs[_params[1]];
+  size_t nPatterns = 0;
+  for (size_t i = 0; i < _params[1]; ++i)
+    inputs[i] = 0;
+
   while (getline(patternFile, line)) {
     // check the length of patterns
     if (line.size() != _params[1]) {
@@ -66,7 +71,17 @@ CirMgr::fileSim(ifstream& patternFile)
     if (pos != string::npos) {
       cerr << "\nError: Pattern(" << line << ") contains a non-0/1 character(\'"
         << line[pos] << "\').\n";
+      break;
     }
+    // convert inputs patterns
+    for (size_t i = 0; i < _params[1]; ++i) {
+      inputs[i] = (size_t)(line[1] == '1');
+      inputs[i] <<= 1;
+    }
+    ++nPatterns;
+
+    // start to simulate
+
   }
 
 
@@ -75,3 +90,28 @@ CirMgr::fileSim(ifstream& patternFile)
 /*************************************************/
 /*   Private member functions about Simulation   */
 /*************************************************/
+
+HashMap<SimKey, IDList>
+CirMgr::simulate(HashMap<SimKey, IDList> FECGrps)
+{
+  HashMap<SimKey, IDList> target;
+  for (FECGrps::iterator it = FECGrps.begin(); it != FECGrps.end(); ++it) {
+    HashMap<SimKey, IDList> newFECGrps(0);
+    for (size_t i = 0; i < it.second.size(); ++i) {
+      IDList temp;
+      CirGate* gate = (CirGate*)(it.second[i] & ~(size_t)(0x1));
+      size_t key = gate->_fanin[0] & gate_fanin[1];
+      if (newFECGrps.check(key, temp)) {
+        temp.push_back((size_t)gate);
+      }
+      else {
+        temp.push_back((size_t)gate);
+        newFECGrps.forceInsert(key, temp);
+      }
+    }
+    for (newFECGrps::iterator nt = newFECGrps.begin(); nt != newFECGrps.end(); ++nt) {
+      if (nt.second.size() != 1) target.forceInsert(nt.first, nt.second);
+    }
+  }
+  return target;
+}

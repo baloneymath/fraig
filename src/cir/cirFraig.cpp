@@ -53,7 +53,7 @@ class StrashKey
 void
 CirMgr::strash()
 {
-  HashMap< StrashKey, CirGate*> myMap( (size_t)(_dfsList.size() * 1.6));
+  HashMap<StrashKey, CirGate*> myMap( (size_t)(_dfsList.size() * 1.6));
   for (size_t i = 0; i < _dfsList.size(); ++i) {
     if (_dfsList[i]->getType() != AIG_GATE) continue;
     size_t fanin[2];
