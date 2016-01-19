@@ -48,10 +48,11 @@ class CirMgr
         bool check(CirGate*);
 
         void optimize();
-        void merge(CirGate*, CirGate*, size_t, std::string);
+        void merge(CirGate*, CirGate*, size_t, string);
         // Member functions about simulation
         void randomSim();
         void fileSim(ifstream&);
+        void simulate(vector<size_t>*, size_t);
         void setSimLog(ofstream *logFile) { _simLog = logFile; }
 
         // Member functions about fraig
@@ -77,6 +78,7 @@ class CirMgr
         vector<CirGate*>     _dfsList;       // DFS List on the way
         vector<string>       _comments;
         ofstream             *_simLog;
+        vector<IDList>       _fecList; // FEC groups
 
 };
 

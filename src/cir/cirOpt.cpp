@@ -139,7 +139,7 @@ CirMgr::optimize()
 // inv is going to make the inverse bit right
 // so it need to use a XOR compute with the fanout's fanin's inverse bit
 void
-CirMgr::merge(CirGate* old, CirGate* New, size_t inv, std::string messege)
+CirMgr::merge(CirGate* old, CirGate* New, size_t inv, string messege)
 {
   for (size_t i = 0; i < old->_fanout.size(); ++i) {
     CirGate* out = (CirGate*)(old->_fanout[i] & ~(size_t)(0x1));

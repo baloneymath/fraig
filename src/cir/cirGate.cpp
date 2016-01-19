@@ -96,6 +96,24 @@ CirGate::reportGate() const
     getline(s, p);
     cout << "==================================================" << endl;
     cout << setw(49) << left << p << "="<< endl;
+    // FECs
+    s.clear();
+    s << "= FECs:";
+    p.clear();
+    getline(s, p);
+    cout << setw(49) << left << p << "=" << endl;
+    // simValues
+    s.clear();
+    s << "= Value: ";
+    size_t value = _simValue;
+    for (int i = 0; i < 32; i++) {
+      if (i && i % 4 == 0) s << "_";
+      s << (value & 1);
+      value >>= 1;
+    }
+    p.clear();
+    getline(s, p);
+    cout << setw(49) << left << p << "=" << endl;
     cout << "==================================================" << endl;
 }
 
