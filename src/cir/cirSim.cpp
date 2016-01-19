@@ -94,7 +94,6 @@ CirMgr::fileSim(ifstream& patternFile)
     simulate(pattern, nPatterns);
     cout << nPatterns << " patterns simulatd.\n";
   }
-  delete pattern;
 }
 
 /*************************************************/
@@ -108,7 +107,7 @@ CirMgr::simulate(vector<size_t>* pattern, size_t nPatterns)
   IDList temp;
   for (size_t i = 0; i < _dfsList.size(); ++i)
     temp.push_back(_dfsList[i]->getId());
-  vector<IDList>& FECGrps = _fecList;
+  vector<IDList> &FECGrps = _fecList;
   FECGrps.push_back(temp);
   // set simValue
   for (size_t i = 0; i < pattern[0].size(); ++i) {
@@ -164,14 +163,16 @@ CirMgr::simulate(vector<size_t>* pattern, size_t nPatterns)
         IDList temp;
         cout << "2222222222222\n";
         CirGate* gate = getGate(FECGrps[0][k]);
-        temp.push_back(gate->getId());
         if (newFECGrps.check(gate->_simValue, temp)) {
+          temp.push_back(gate->getId());
           newFECGrps.replaceInsert(gate->_simValue, temp);
         }
         else if (newFECGrps.check(~(gate->_simValue), temp)) {
+          temp.push_back(gate->getId());
           newFECGrps.replaceInsert(gate->_simValue, temp);
         }
         else {
+          temp.push_back(gate->getId());
           newFECGrps.forceInsert(gate->_simValue, temp);
         }
       }
