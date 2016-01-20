@@ -11,6 +11,7 @@
 #include <sstream>
 #include <stdarg.h>
 #include <cassert>
+#include <algorithm>
 #include "cirGate.h"
 #include "cirMgr.h"
 #include "util.h"
@@ -26,6 +27,7 @@ extern CirMgr *cirMgr;
 /**************************************/
 /*   class CirGate member functions   */
 /**************************************/
+
 void CirGate::netflow(bool flag[], vector<CirGate*>& list) const
 {   if (flag[_id]) return;
     for (size_t i = 0; i < _fanin.size(); ++i)
@@ -99,6 +101,13 @@ CirGate::reportGate() const
     // FECs
     s.clear();
     s << "= FECs:";
+    if (_fecs != NULL)
+    for (size_t i = 0; i < (*_fecs).size(); ++i) {
+      if ((*_fecs)[i]/2 != getId()) {
+        std::sort((*_fecs).begin(), (*_fecs).end());
+        s << " " << (((*_fecs)[i]%2 == 1)? "!":"") << (*_fecs)[i]/2;
+      }
+    }
     p.clear();
     getline(s, p);
     cout << setw(49) << left << p << "=" << endl;

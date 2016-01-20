@@ -65,7 +65,7 @@ CirMgr::strash()
     CirGate* temp;
 
     if (myMap.check(fanin, temp)) {
-      CirMgr::merge(_dfsList[i], temp, 0, "Strashing: ");
+      merge(_dfsList[i], temp, 0, "Strashing: ");
       // remove some trash
       for (size_t j = 0; j < 2; ++j) {
         for (size_t k = 0; k < in[j]->_fanout.size(); ++k) {
@@ -89,8 +89,11 @@ CirMgr::strash()
 void
 CirMgr::fraig()
 {
+  // initialize circuit
   SatSolver solver;
   solver.initialize();
+  // generate proof model
+  _gateList[0]->_var = solver.newVar();
   for (size_t i = 0; i < _dfsList.size(); ++i) {
     if (_dfsList[i]->getType() == PI_GATE || _dfsList[i]->getType() == AIG_GATE) {
       Var v = solver.newVar();
@@ -107,24 +110,53 @@ CirMgr::fraig()
     }
 
   }
-
+  // proofing
   bool result;
   Var newVar;
-  for (size_t i = 0; i < _fecList.size(); ++i) {
-    for (size_t j = 0; j < _fecList[i].size(); ++i) {
-      for (size_t k = j+1; k < _fecList[i].size(); ++k) {
+  for (size_t i = 0; i < _dfsList.size(); ++i) {
+    if (_dfsList[i]->_fecs == NULL) continue;
+    IDList fecs = (*_dfsList[i]->_fecs);
+    for (size_t j = 0; j < fecs.size(); ++j) {
+      for (size_t k = j+1; k < fecs.size(); ++k) {
         newVar = solver.newVar();
+        CirGate* ptr[2];
+        ptr[0] = getGate(fecs[j]/2);
+        ptr[1] = getGate(fecs[k]/2);
         bool flag[2];
-        flag[0] = (_fecList[i][j]%2 == 1);
-        flag[1] = (_fecList[i][k]%2 == 1);
-        solver.addXorCNF(newVar, _fecList[i][j], flag[0], _fecList[i][k], flag[1]);
+        flag[0] = (fecs[j]%2 == 1);
+        flag[1] = (fecs[k]%2 == 1);
+        solver.addXorCNF(newVar, ptr[0]->_var, flag[0], ptr[1]->_var, flag[1]);
         solver.assumeRelease();
         solver.assumeProperty(newVar, true);
         result = solver.assumpSolve();
-        reportResult(solver);
+        // merge
+        if (!result) {
+          CirGate* ptr[2];
+          ptr[0] = getGate(fecs[j]/2);
+          ptr[1] = getGate(fecs[k]/2);
+          merge(ptr[1], ptr[0], 0, "Fraig: ");
+          // remove some NULL fanouts
+          CirGate* in[2];
+          in[0] = (CirGate*)(ptr[1]->_fanin[0] & ~(size_t)(0x1));
+          in[1] = (CirGate*)(ptr[1]->_fanin[1] & ~(size_t)(0x1));
+          /*for (size_t m = 0; m < 2; ++m) {
+            for (size_t n = 0; n < in[m]->_fanout.size(); ++i) {
+              if ( (CirGate*)(in[m]->_fanout[n] & ~(size_t)(0x1)) == ptr[1])
+                in[m]->_fanout.erase(in[m]->_fanout.begin()+n);
+            }
+            if (in[m]->getType() == UNDEF_GATE && in[m]->_fanout.size() == 0) {
+              _gateList[in[m]->getId()] = NULL;
+              delete in[m];
+            }
+          }*/
+          cout << "Updating by UNSAT... Total #FEC Group = " << _fecList.size() << endl;
+        }
       }
     }
   }
+  optimize();
+  strash();
+  buildDFSList();
 }
 
 /********************************************/

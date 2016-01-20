@@ -713,6 +713,66 @@ CirMgr::writeAag(ostream& outfile) const
 }
 
 void
-CirMgr::writeGate(ostream& outfile, CirGate *g) const
+CirMgr::writeGate(ostream& outfile, CirGate *g)
 {
+  size_t newparams[5] = {0,0,0,0,0};
+  newparams[0] = g->getId();
+  newparams[3] = 1;
+  for (size_t i = 0; i < _dfsList.size(); ++i)
+    _dfsList[i]->_flag = false;
+  DFS(g);
+  for (size_t i = 0; i < _dfsList.size(); ++i)
+    _dfsList[i]->_flag = false;
+  for (size_t i = 0; i < _writeGateList.size(); ++i) {
+    if (_writeGateList[i]->getType() == PI_GATE) ++newparams[1];
+    else if (_writeGateList[i]->getType() == AIG_GATE) ++newparams[4];
+  }
+  // title
+  outfile << "aag";
+  for (size_t i = 0; i < 5; ++i) outfile << " " << newparams[i];
+    outfile << endl;
+  // PI
+  for (size_t i = 0; i < _writeGateList.size(); ++i)
+    if (_writeGateList[i]->getType() == PI_GATE) outfile << _writeGateList[i]->getId()*2 << endl;
+  // PO
+  outfile << 2*newparams[0] << endl;
+  // AIG
+  for (size_t i = 0; i < _writeGateList.size(); ++i)
+    if (_writeGateList[i]->getType() == AIG_GATE) {
+      IDList& fanin = _writeGateList[i]->_fanin;
+      CirGate* in[2];
+      in[0] = (CirGate*)(fanin[0] & ~(size_t)(0x1));
+      in[1] = (CirGate*)(fanin[1] & ~(size_t)(0x1));
+      outfile << _writeGateList[i]->getId()*2 << " "
+        << (((fanin[0]&1) == 1)? in[0]->getId()*2+1:in[0]->getId()*2) << " "
+        << (((fanin[1]&1) == 1)? in[1]->getId()*2+1:in[1]->getId()*2) << " "
+        << endl;
+    }
+  // name
+  for (size_t i = 0; i < _writeGateList.size(); ++i) {
+    if (_writeGateList[i]->getType() == PI_GATE) {
+      size_t n;
+      for (size_t j = 0; j < _piList.size(); ++j)
+        if (_piList[j] == _writeGateList[i]) n = j;
+      if (_piList[n]->_name != "")
+        outfile << "i" << n << " " << _piList[n]->_name << endl;
+    }
+  }
+  outfile << "o0 " << newparams[0] << endl;
+  outfile << "c" << endl;
+  outfile << "Write gate (" << newparams[0] << ") by Hao Chen" << endl;
+  _writeGateList.clear();
+
+}
+
+void CirMgr::DFS(CirGate* c)
+{
+  c->_flag = true;
+  IDList& fanin = c->_fanin;
+  for (size_t i = 0; i < fanin.size(); ++i) {
+    if (fanin[i] && (((CirGate*)(fanin[i] & ~(size_t)(0x1)))->_flag == false))
+      if (((CirGate*)(fanin[i] & ~(size_t)(0x1)))->getType() != UNDEF_GATE)
+        DFS((CirGate*)(fanin[i] & ~(size_t)(0x1)));
+  }
+  _writeGateList.push_back(c);
 }

@@ -60,7 +60,7 @@ class CirMgr
         void strash();
         void printFEC() const;
         void fraig();
-        void reportResult(const SatSolver, bool, CirGate*);
+        void reportResult(const SatSolver&, bool, CirGate*);
 
         // Member functions about circuit reporting
         void printSummary() const;
@@ -70,7 +70,8 @@ class CirMgr
         void printFloatGates() const;
         void printFECPairs() const;
         void writeAag(ostream&) const;
-        void writeGate(ostream&, CirGate*) const;
+        void writeGate(ostream&, CirGate*);
+        void DFS(CirGate*);
 
     private:
         int                  _params[5];    // M I L O A
@@ -81,6 +82,7 @@ class CirMgr
         vector<string>       _comments;
         ofstream             *_simLog;
         vector<IDList>       _fecList; // FEC groups with ID*2 (the form of .aag file)
+        vector<CirGate*>     _writeGateList;
 
 };
 

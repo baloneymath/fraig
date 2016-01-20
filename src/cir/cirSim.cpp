@@ -54,7 +54,7 @@ CirMgr::randomSim()
     if (_dfsList[i]->getType() == AIG_GATE)
       temp.push_back(2*_dfsList[i]->getId());
   _fecList.push_back(temp);
-  while (nPatterns <= MAX_FAILS) {
+  while (nPatterns < MAX_FAILS) {
     // set simValue
     for (size_t i = 0; i < _piList.size(); ++i) {
       // create randomValue
@@ -102,7 +102,6 @@ void
 CirMgr::fileSim(ifstream& patternFile)
 {
   string line;
-  vector<string> lines;
   vector<size_t>* pattern;
   size_t nPatterns = 0;
 
@@ -130,7 +129,6 @@ CirMgr::fileSim(ifstream& patternFile)
       pattern[i][nPatterns/64] = (pattern[i][nPatterns/64] << 1) | (size_t)(line[i] == '1');
     }
     // convert inputs patterns
-    lines.push_back(line);
     ++nPatterns;
     patternFile >> line;
   }
@@ -224,7 +222,7 @@ CirMgr::collectValidFECs()
         temp.push_back(2*gate->getId());
         newFECGrps.replaceInsert(gate->_simValue, temp);
       }
-      else if (newFECGrps.check(SimKey(~(gate->_simValue)), temp)) {
+      else if (newFECGrps.check(~(gate->_simValue), temp)) {
         temp.push_back(1+2*gate->getId());
         newFECGrps.replaceInsert(~(gate->_simValue), temp);
       }
@@ -241,4 +239,10 @@ CirMgr::collectValidFECs()
   }
   _fecList.clear();
   _fecList = newfec;
+  for (size_t i = 0; i < _fecList.size(); ++i) {
+    for (size_t j = 0; j < _fecList[i].size(); ++j) {
+      CirGate* gate = getGate(_fecList[i][j]/2);
+      gate->_fecs = &_fecList[i];
+    }
+  }
 }

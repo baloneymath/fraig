@@ -58,9 +58,10 @@ class CirGate
         int _lineNum;
         vector<size_t> _fanin;
         vector<size_t> _fanout;
-        vector<size_t> _fecs;
+        IDList*        _fecs;
         size_t         _simValue;
         Var            _var;
+        bool           _flag;
 };
 
 class ConstGate: public CirGate
