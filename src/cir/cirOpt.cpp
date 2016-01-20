@@ -89,23 +89,22 @@ CirMgr::optimize()
     in[0] = (CirGate*)(fanin[0] & ~(size_t)(0x1));
     in[1] = (CirGate*)(fanin[1] & ~(size_t)(0x1));
 
+    // one of the fanin is 0
+    if (fanin[0] == (size_t)_gateList[0] || fanin[1] == (size_t)_gateList[0]) {
+      merge(_dfsList[i], _gateList[0], 0, "Simplifying: ");
+    }
+    // one of the fanin is 1
+    else if (in[0] == _gateList[0] || in[1] == _gateList[0]) {
+      if (in[0] == _gateList[0]) merge(_dfsList[i], in[1], fanin[1]&1, "Simplifying: ");
+      else merge(_dfsList[i], in[0], fanin[0]&1, "Simplifying: ");
+    }
     // both fanins are the same
-    if (fanin[0] == fanin[1]) {
+    else if (fanin[0] == fanin[1]) {
       merge(_dfsList[i], in[0], fanin[0]&1, "Simplifying: ");
     }
     // one fanin is the inverse of the other
     else if (in[0] == in[1]) {
       merge(_dfsList[i], _gateList[0], 0, "Simplifying: ");
-    }
-    // one of the fanin is 0
-    else if (fanin[0] == (size_t)_gateList[0] || fanin[1] == (size_t)_gateList[0]) {
-      merge(_dfsList[i], _gateList[0], 0, "Simplifying: ");
-    }
-
-    // one of the fanin is 1
-    else if (in[0] == _gateList[0] || in[1] == _gateList[0]) {
-      if (in[0] == _gateList[0]) merge(_dfsList[i], in[1], fanin[1]&1, "Simplifying: ");
-      else merge(_dfsList[i], in[0], fanin[0]&1, "Simplifying: ");
     }
     // none of the cases above
     else continue;

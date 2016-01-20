@@ -53,12 +53,14 @@ class CirMgr
         void randomSim();
         void fileSim(ifstream&);
         void simulate(vector<size_t>*, size_t);
+        void collectValidFECs();
         void setSimLog(ofstream *logFile) { _simLog = logFile; }
 
         // Member functions about fraig
         void strash();
         void printFEC() const;
         void fraig();
+        void reportResult(const SatSolver, bool, CirGate*);
 
         // Member functions about circuit reporting
         void printSummary() const;
@@ -78,7 +80,7 @@ class CirMgr
         vector<CirGate*>     _dfsList;       // DFS List on the way
         vector<string>       _comments;
         ofstream             *_simLog;
-        vector<IDList>       _fecList; // FEC groups
+        vector<IDList>       _fecList; // FEC groups with ID*2 (the form of .aag file)
 
 };
 

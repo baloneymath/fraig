@@ -661,8 +661,9 @@ void CirMgr::printFECPairs() const
 {
   for (size_t i = 0; i < _fecList.size(); i++) {
     cout << "[" << i << "] ";
-    for(size_t j = 0; j < _fecList[i].size(); j++)
-      cout << _fecList[i][j] << " ";
+    for(size_t j = 0; j < _fecList[i].size(); j++) {
+      cout << ((_fecList[i][j]%2 == 1)? "!":"") << _fecList[i][j]/2 << " ";
+    }
     cout << endl;
   }
 }

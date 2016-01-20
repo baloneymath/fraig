@@ -14,6 +14,7 @@
 #include "cirMgr.h"
 #include "cirGate.h"
 #include "util.h"
+#include <cmath>
 
 
 using namespace std;
@@ -46,8 +47,55 @@ class SimKey
 void
 CirMgr::randomSim()
 {
-  vector<size_t>* pattern;
-  pattern = new vector<size_t>[_params[1]];
+  size_t MAX_FAILS = 2*log2(_dfsList.size()), nPatterns = 0;
+  IDList temp;
+  temp.push_back(0);
+  for (size_t i = 0; i < _dfsList.size(); ++i)
+    if (_dfsList[i]->getType() == AIG_GATE)
+      temp.push_back(2*_dfsList[i]->getId());
+  _fecList.push_back(temp);
+  while (nPatterns <= MAX_FAILS) {
+    // set simValue
+    for (size_t i = 0; i < _piList.size(); ++i) {
+      // create randomValue
+      size_t value = ((size_t)(rnGen(INT_MAX)) << 32) | (((size_t)(rnGen(INT_MAX))));
+      _piList[i]->_simValue = value;
+    }
+    for (size_t i = 0; i < _dfsList.size(); ++i) {
+      if (_dfsList[i]->getType() == AIG_GATE) {
+        CirGate* in[2];
+        in[0] = (CirGate*)(_dfsList[i]->_fanin[0] & ~(size_t)(0x1));
+        in[1] = (CirGate*)(_dfsList[i]->_fanin[1] & ~(size_t)(0x1));
+        size_t value[2];
+        value[0] = (((_dfsList[i]->_fanin[0])&1) ==1)? ~(in[0]->_simValue):in[0]->_simValue;
+        value[1] = (((_dfsList[i]->_fanin[1])&1) ==1)? ~(in[1]->_simValue):in[1]->_simValue;
+        _dfsList[i]->_simValue = value[0] & value[1];
+      }
+      else if (_dfsList[i]->getType() == PO_GATE) {
+        CirGate* in = (CirGate*)(_dfsList[i]->_fanin[0] & ~(size_t)(0x1));
+        _dfsList[i]->_simValue = (((_dfsList[i]->_fanin[0])&1) == 1)? ~(in->_simValue):in->_simValue;
+      }
+    }
+    // write simLog
+    if (_simLog != NULL) {
+      size_t mask = (size_t)(0x1);
+      for (size_t j = 0; j < _piList.size(); ++j) {
+        for (size_t k = 0; k < 64; ++k)
+          (*_simLog) << ((mask<<k) & (_piList[j]->_simValue));
+      }
+      (*_simLog) << ' ';
+      for (size_t j = 0; j < _poList.size(); ++j) {
+        for (size_t k = 0; k < 64; ++k)
+          (*_simLog) << ((mask<<k)&(_poList[j]->_simValue));
+      }
+    }
+    // collectValidFECs
+    vector<IDList> oldFECs = _fecList;
+    collectValidFECs();
+    if (oldFECs == _fecList) nPatterns++;
+  }
+  cout << "MAX_FAILS: " << MAX_FAILS << endl;
+  cout << nPatterns*64 << " patterns simulated.\n";
 }
 
 void
@@ -105,12 +153,15 @@ CirMgr::simulate(vector<size_t>* pattern, size_t nPatterns)
 {
   // initialize _fecList;
   IDList temp;
+  temp.push_back(0);
   for (size_t i = 0; i < _dfsList.size(); ++i)
-    temp.push_back(_dfsList[i]->getId());
+    if (_dfsList[i]->getType() == AIG_GATE)
+      temp.push_back(2*_dfsList[i]->getId());
   vector<IDList> &FECGrps = _fecList;
   FECGrps.push_back(temp);
-  // set simValue
+  // procedure for a simulation
   for (size_t i = 0; i < pattern[0].size(); ++i) {
+    // set simValue
     for (size_t j = 0; j < _piList.size(); ++j)
       _piList[j]->_simValue = pattern[j][i];
     for (size_t j = 0; j < _dfsList.size(); ++j) {
@@ -154,32 +205,40 @@ CirMgr::simulate(vector<size_t>* pattern, size_t nPatterns)
       }
     }
     // build FECs
-    size_t m = FECGrps.size();
-    for (size_t j = 0; j < m; ++j) {
-      cout << "111111111111111\n";
-      HashMap<SimKey, IDList> newFECGrps(FECGrps.size());
-      size_t n = FECGrps[0].size();
-      for (size_t k = 0; k < n; ++k) {
-        IDList temp;
-        cout << "2222222222222\n";
-        CirGate* gate = getGate(FECGrps[0][k]);
-        if (newFECGrps.check(gate->_simValue, temp)) {
-          temp.push_back(gate->getId());
-          newFECGrps.replaceInsert(gate->_simValue, temp);
-        }
-        else if (newFECGrps.check(~(gate->_simValue), temp)) {
-          temp.push_back(gate->getId());
-          newFECGrps.replaceInsert(gate->_simValue, temp);
-        }
-        else {
-          temp.push_back(gate->getId());
-          newFECGrps.forceInsert(gate->_simValue, temp);
-        }
-      }
-      FECGrps.erase(FECGrps.begin()); // remove old groups
-      for (HashMap<SimKey, IDList>::iterator nt = newFECGrps.begin(); nt != newFECGrps.end(); ++nt)
-        if ((*nt).second.size() != 1) {FECGrps.push_back((*nt).second);cout << "33333333333\n";}
-    }
-
+    collectValidFECs();
   }
+}
+
+void
+CirMgr::collectValidFECs()
+{
+  size_t m = _fecList.size();
+  vector<IDList> newfec;
+  for (size_t i = 0; i < m; ++i) {
+    // Hashing
+    HashMap<SimKey, IDList> newFECGrps(_fecList.size());
+    for (size_t j = 0, n = _fecList[i].size(); j < n; ++j) {
+      IDList temp;
+      CirGate* gate = getGate(_fecList[i][j]/2);
+      if (newFECGrps.check(gate->_simValue, temp)) {
+        temp.push_back(2*gate->getId());
+        newFECGrps.replaceInsert(gate->_simValue, temp);
+      }
+      else if (newFECGrps.check(SimKey(~(gate->_simValue)), temp)) {
+        temp.push_back(1+2*gate->getId());
+        newFECGrps.replaceInsert(~(gate->_simValue), temp);
+      }
+      else {
+        temp.push_back(2*gate->getId());
+        newFECGrps.forceInsert(gate->_simValue, temp);
+      }
+    }
+    // collecting
+    for (HashMap<SimKey, IDList>::iterator nt = newFECGrps.begin(); nt != newFECGrps.end(); ++nt)
+      if ((*nt).second.size() != 1) {
+        newfec.push_back((*nt).second);
+      }
+  }
+  _fecList.clear();
+  _fecList = newfec;
 }

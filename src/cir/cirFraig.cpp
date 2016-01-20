@@ -89,8 +89,54 @@ CirMgr::strash()
 void
 CirMgr::fraig()
 {
+  SatSolver solver;
+  solver.initialize();
+  for (size_t i = 0; i < _dfsList.size(); ++i) {
+    if (_dfsList[i]->getType() == PI_GATE || _dfsList[i]->getType() == AIG_GATE) {
+      Var v = solver.newVar();
+      _dfsList[i]->_var = v;
+      if (_dfsList[i]->getType() == AIG_GATE) {
+        CirGate* in[2];
+        in[0] = (CirGate*)(_dfsList[i]->_fanin[0] & ~(size_t)(0x1));
+        in[1] = (CirGate*)(_dfsList[i]->_fanin[1] & ~(size_t)(0x1));
+        bool flag[2];
+        flag[0] = (((_dfsList[i]->_fanin[0])&1) == 1);
+        flag[1] = (((_dfsList[i]->_fanin[1])&1) == 1);
+        solver.addAigCNF(_dfsList[i]->_var, in[0]->_var, flag[0], in[1]->_var, flag[1]);
+      }
+    }
+
+  }
+
+  bool result;
+  Var newVar;
+  for (size_t i = 0; i < _fecList.size(); ++i) {
+    for (size_t j = 0; j < _fecList[i].size(); ++i) {
+      for (size_t k = j+1; k < _fecList[i].size(); ++k) {
+        newVar = solver.newVar();
+        bool flag[2];
+        flag[0] = (_fecList[i][j]%2 == 1);
+        flag[1] = (_fecList[i][k]%2 == 1);
+        solver.addXorCNF(newVar, _fecList[i][j], flag[0], _fecList[i][k], flag[1]);
+        solver.assumeRelease();
+        solver.assumeProperty(newVar, true);
+        result = solver.assumpSolve();
+        reportResult(solver);
+      }
+    }
+  }
 }
 
 /********************************************/
 /*   Private member functions about fraig   */
 /********************************************/
+
+void
+CirMgr::reportResult(const SatSolver &s, bool result, CirGate* c)
+{
+  s.printStats();
+  cout << (result? "SAT":"UNSAT") << endl;
+  if (result) {
+    cout << s.getValue(c->_var) << endl;
+  }
+}
