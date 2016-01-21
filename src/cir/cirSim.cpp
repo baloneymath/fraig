@@ -214,7 +214,7 @@ CirMgr::collectValidFECs()
   vector<IDList> newfec;
   for (size_t i = 0; i < m; ++i) {
     // Hashing
-    HashMap<SimKey, IDList> newFECGrps(_fecList.size());
+    HashMap<SimKey, IDList> newFECGrps(getHashSize(_fecList[i].size()));
     for (size_t j = 0, n = _fecList[i].size(); j < n; ++j) {
       IDList temp;
       CirGate* gate = getGate(_fecList[i][j]/2);

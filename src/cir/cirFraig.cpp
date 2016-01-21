@@ -93,23 +93,7 @@ CirMgr::fraig()
   SatSolver solver;
   solver.initialize();
   // generate proof model
-  _gateList[0]->_var = solver.newVar();
-  for (size_t i = 0; i < _dfsList.size(); ++i) {
-    if (_dfsList[i]->getType() == PI_GATE || _dfsList[i]->getType() == AIG_GATE) {
-      Var v = solver.newVar();
-      _dfsList[i]->_var = v;
-      if (_dfsList[i]->getType() == AIG_GATE) {
-        CirGate* in[2];
-        in[0] = (CirGate*)(_dfsList[i]->_fanin[0] & ~(size_t)(0x1));
-        in[1] = (CirGate*)(_dfsList[i]->_fanin[1] & ~(size_t)(0x1));
-        bool flag[2];
-        flag[0] = (((_dfsList[i]->_fanin[0])&1) == 1);
-        flag[1] = (((_dfsList[i]->_fanin[1])&1) == 1);
-        solver.addAigCNF(_dfsList[i]->_var, in[0]->_var, flag[0], in[1]->_var, flag[1]);
-      }
-    }
-
-  }
+  generateProofModel(solver);
   // proofing
   bool result;
   Var newVar;
@@ -133,7 +117,25 @@ CirMgr::fraig()
         // merge
         if (!result) {
           --_params[4];
-          merge(ptr[1], ptr[0], (size_t)flag[0]^flag[1], "Fraig: ");
+
+          if (ptr[0]->_simValue == (size_t)(0x0)) {
+            merge(ptr[0], _gateList[0], 0, "Fraig: ");
+            solver.initialize();
+            buildDFSList();
+            generateProofModel(solver);
+          }
+          if (ptr[1]->_simValue == (size_t)(0x0)) {
+            merge(ptr[1], _gateList[0], 0, "Fraig: ");
+            solver.initialize();
+            buildDFSList();
+            generateProofModel(solver);
+          }
+          else {
+            merge(ptr[1], ptr[0], (size_t)flag[0]^flag[1], "Fraig: ");
+            solver.initialize();
+            buildDFSList();
+            generateProofModel(solver);
+          }
           // remove some NULL fanouts
           CirGate* in[2];
           in[0] = (CirGate*)(ptr[1]->_fanin[0] & ~(size_t)(0x1));
@@ -152,6 +154,7 @@ CirMgr::fraig()
           _gateList[ptr[1]->getId()] = NULL;
           delete ptr[1];
           fecs.erase(fecs.begin()+k);
+          --j;
           cout << "Updating by UNSAT... Total #FEC Group = " << _fecList.size() << endl;
         }
         else {
@@ -187,4 +190,26 @@ CirMgr::clearFECs()
   for (size_t i = 0; i < _dfsList.size(); ++i) {
     if (_dfsList[i]->_fecs)  _dfsList[i]->_fecs = NULL;
   }
+}
+
+void
+CirMgr::generateProofModel(SatSolver& solver)
+{
+  _gateList[0]->_var = solver.newVar();
+  for (size_t i = 0; i < _dfsList.size(); ++i) {
+    if (_dfsList[i]->getType() == PI_GATE || _dfsList[i]->getType() == AIG_GATE) {
+      Var v = solver.newVar();
+      _dfsList[i]->_var = v;
+      if (_dfsList[i]->getType() == AIG_GATE) {
+        CirGate* in[2];
+        in[0] = (CirGate*)(_dfsList[i]->_fanin[0] & ~(size_t)(0x1));
+        in[1] = (CirGate*)(_dfsList[i]->_fanin[1] & ~(size_t)(0x1));
+        bool flag[2];
+        flag[0] = (((_dfsList[i]->_fanin[0])&1) == 1);
+        flag[1] = (((_dfsList[i]->_fanin[1])&1) == 1);
+        solver.addAigCNF(_dfsList[i]->_var, in[0]->_var, flag[0], in[1]->_var, flag[1]);
+      }
+    }
+  }
+
 }

@@ -62,6 +62,7 @@ class CirMgr
         void fraig();
         void reportResult(const SatSolver&, bool, CirGate*);
         void clearFECs();
+        void generateProofModel(SatSolver&);
 
         // Member functions about circuit reporting
         void printSummary() const;
