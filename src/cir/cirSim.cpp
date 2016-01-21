@@ -47,7 +47,7 @@ class SimKey
 void
 CirMgr::randomSim()
 {
-  size_t MAX_FAILS = 2*log2(_dfsList.size()), nPatterns = 0;
+  size_t MAX_FAILS = 4 + log2(_dfsList.size()), nPatterns = 0;
   IDList temp;
   temp.push_back(0);
   for (size_t i = 0; i < _dfsList.size(); ++i)

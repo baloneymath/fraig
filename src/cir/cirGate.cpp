@@ -104,7 +104,7 @@ CirGate::reportGate() const
     if (_fecs != NULL)
     for (size_t i = 0; i < (*_fecs).size(); ++i) {
       if ((*_fecs)[i]/2 != getId()) {
-        std::sort((*_fecs).begin(), (*_fecs).end());
+        //std::sort((*_fecs).begin(), (*_fecs).end());
         s << " " << (((*_fecs)[i]%2 == 1)? "!":"") << (*_fecs)[i]/2;
       }
     }

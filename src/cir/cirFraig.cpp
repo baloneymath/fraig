@@ -114,8 +114,9 @@ CirMgr::fraig()
   bool result;
   Var newVar;
   for (size_t i = 0; i < _dfsList.size(); ++i) {
+    if (_dfsList[i] == NULL) continue;
     if (_dfsList[i]->_fecs == NULL) continue;
-    IDList fecs = (*_dfsList[i]->_fecs);
+    IDList& fecs = (*_dfsList[i]->_fecs);
     for (size_t j = 0; j < fecs.size(); ++j) {
       for (size_t k = j+1; k < fecs.size(); ++k) {
         newVar = solver.newVar();
@@ -131,16 +132,14 @@ CirMgr::fraig()
         result = solver.assumpSolve();
         // merge
         if (!result) {
-          CirGate* ptr[2];
-          ptr[0] = getGate(fecs[j]/2);
-          ptr[1] = getGate(fecs[k]/2);
-          merge(ptr[1], ptr[0], 0, "Fraig: ");
+          --_params[4];
+          merge(ptr[1], ptr[0], (size_t)flag[0]^flag[1], "Fraig: ");
           // remove some NULL fanouts
           CirGate* in[2];
           in[0] = (CirGate*)(ptr[1]->_fanin[0] & ~(size_t)(0x1));
           in[1] = (CirGate*)(ptr[1]->_fanin[1] & ~(size_t)(0x1));
-          /*for (size_t m = 0; m < 2; ++m) {
-            for (size_t n = 0; n < in[m]->_fanout.size(); ++i) {
+          for (size_t m = 0; m < 2; ++m) {
+            for (size_t n = 0; n < in[m]->_fanout.size(); ++n) {
               if ( (CirGate*)(in[m]->_fanout[n] & ~(size_t)(0x1)) == ptr[1])
                 in[m]->_fanout.erase(in[m]->_fanout.begin()+n);
             }
@@ -148,12 +147,21 @@ CirMgr::fraig()
               _gateList[in[m]->getId()] = NULL;
               delete in[m];
             }
-          }*/
+          }
+          ////////////////////////////////////////////////////////////
+          _gateList[ptr[1]->getId()] = NULL;
+          delete ptr[1];
+          fecs.erase(fecs.begin()+k);
           cout << "Updating by UNSAT... Total #FEC Group = " << _fecList.size() << endl;
+        }
+        else {
         }
       }
     }
   }
+  _fecList.clear();
+  clearFECs();
+  buildDFSList();
   optimize();
   strash();
   buildDFSList();
@@ -170,5 +178,13 @@ CirMgr::reportResult(const SatSolver &s, bool result, CirGate* c)
   cout << (result? "SAT":"UNSAT") << endl;
   if (result) {
     cout << s.getValue(c->_var) << endl;
+  }
+}
+
+void
+CirMgr::clearFECs()
+{
+  for (size_t i = 0; i < _dfsList.size(); ++i) {
+    if (_dfsList[i]->_fecs)  _dfsList[i]->_fecs = NULL;
   }
 }

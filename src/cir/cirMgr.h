@@ -61,6 +61,7 @@ class CirMgr
         void printFEC() const;
         void fraig();
         void reportResult(const SatSolver&, bool, CirGate*);
+        void clearFECs();
 
         // Member functions about circuit reporting
         void printSummary() const;
